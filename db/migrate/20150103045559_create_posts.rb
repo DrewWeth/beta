@@ -1,5 +1,7 @@
 class CreatePosts < ActiveRecord::Migration
   def change
+    execute "CREATE EXTENSION IF NOT EXISTS postgis;"
+    
     create_table :posts do |t|
       t.string :content, :default => ""
       t.point :latlon, :geographic => true
