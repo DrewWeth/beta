@@ -1,0 +1,11 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  auth_key: MyString
+  parse_token: MyString
+  profile_url: MyString
+
+two:
+  auth_key: MyString
+  parse_token: MyString
+  profile_url: MyString

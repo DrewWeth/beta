@@ -1,0 +1,37 @@
+<h1>Listing posts</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Content</th>
+      <th>Latlon</th>
+      <th>Views</th>
+      <th>Ups</th>
+      <th>Downs</th>
+      <th>Radius</th>
+      <th>Device</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @posts.each do |post| %>
+      <tr>
+        <td><%= post.content %></td>
+        <td><%= post.latlon %></td>
+        <td><%= post.views %></td>
+        <td><%= post.ups %></td>
+        <td><%= post.downs %></td>
+        <td><%= post.radius %></td>
+        <td><%= post.device_id %></td>
+        <td><%= link_to 'Show', post %></td>
+        <td><%= link_to 'Edit', edit_post_path(post) %></td>
+        <td><%= link_to 'Destroy', post, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Post', new_post_path %>
