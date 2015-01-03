@@ -38,5 +38,5 @@ gem 'spring',        group: :development
 # gem 'debugger', group: [:development, :test]
 
 gem 'activerecord-postgis-adapter'
-
+gem 'parse-ruby-client', '~> 0.3.0'
 gem 'geocoder'

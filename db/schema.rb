@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20150103051426) do
+ActiveRecord::Schema.define(version: 20150103083655) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -26,15 +26,17 @@ ActiveRecord::Schema.define(version: 20150103051426) do
   end
 
   create_table "posts", force: true do |t|
-    t.string   "content"
+    t.string   "content",                                                             default: ""
     t.spatial  "latlon",     limit: {:srid=>4326, :type=>"point", :geographic=>true}
-    t.integer  "views"
-    t.integer  "ups"
-    t.integer  "downs"
-    t.float    "radius"
+    t.integer  "views",                                                               default: 0
+    t.integer  "ups",                                                                 default: 0
+    t.integer  "downs",                                                               default: 0
+    t.float    "radius",                                                              default: 2.0
     t.integer  "device_id"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.string   "address"
+    t.string   "city"
   end
 
   add_index "posts", ["created_at"], :name => "post_created_at_index"

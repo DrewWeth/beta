@@ -3,3 +3,16 @@
 <%= render 'form' %>
 
 <%= link_to 'Back', posts_path %>
+
+
+<script>
+$(document).ready(function(){
+
+  navigator.geolocation.getCurrentPosition(GetLocation);
+  function GetLocation(location) {
+    $('#post_latlon' ).val("POINT("+ location.coords.longitude + " " + location.coords.latitude +")");
+  }
+
+
+});
+</script>

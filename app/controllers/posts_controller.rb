@@ -1,6 +1,94 @@
 class PostsController < ApplicationController
   before_action :set_post, only: [:show, :edit, :update, :destroy]
 
+  # Allows for REST-ful API
+  skip_before_filter  :verify_authenticity_token
+  protect_from_forgery with: :null_session
+
+  # Push notifications
+  require 'parse-ruby-client'
+  Parse.init :application_id => "Q5N1wgUAJKrEbspM7Q2PBv32JbTPt5TQpmstic8D", :api_key => "F42ROt0bhDo0GUnsqqO2t5id7Zj37b64fGYYzRZv"
+
+
+  # API GETs
+  def get_nearby
+    matches = []
+    if params["last"] != nil
+      posts = Post.where(['created_at < ?', params["last"]]).last(30)
+    elsif params["since"] != nil
+      posts = Post.where(['created_at > ?', params["since"]]).limit(30)
+    else
+      posts = Post.where("created_at > ?", 2.days.ago).last(30)
+    end
+    posts.each do |p|
+      if Geocoder::Calculations.distance_between([params["latitude"], params["longitude"]] , [p.latitude, p.longitude]) < p.radius
+        # obj = {:post => p, :profile_picture => p.device.profile_url}
+        obj = {:post => p }
+        matches << obj
+        puts obj.to_json
+        puts "what is going on???"
+        Post.update_counters p.id, views: 1, radius: 0.20
+      end
+    end
+    render :json => matches.sort{|a,b| b[:post].updated_at <=> a[:post].updated_at} ## Can push off to (1) database or (2) iphone for efficiency
+  end
+
+
+
+  # API POSTs
+  def viewed
+    Post.update_counters params["id"], views: 1, radius: 0.2
+    render :json => '{"status":"success"}'
+  end
+
+  def up
+    ## implement many-to-many here
+    Post.update_counters params["id"], ups: 1, radius: 0.5
+    post = Post.find(params["id"])
+    if post.ups.modulo(2).zero?
+      message = "Your post got " + post.ups.to_s + " upvotes!"
+      data = { :alert => message }
+
+      push = Parse::Push.new(data)
+      push.where = { :objectId => post.device.parse_token }
+      push.save
+
+      puts "Pushed to device " + post.device.parse_token
+
+    end
+    render :json => '{"status":"success"}'
+  end
+
+  def down
+    ## implement many-to-many here
+    Post.update_counters params["id"], downs: 1, radius: -0.3
+    render :json => '{"status":"success"}'
+  end
+
+  def submit
+    if params["device_id"] != nil and device = Device.find(params["device_id"])
+      if params["auth_key"] and params["auth_key"] == device.auth_key
+        if params["latitude"] != nil and params["longitude"] != nil
+          @post = Post.new
+          @post.content = params["content"]
+          @post.latitude = params["latitude"]
+          @post.longitude = params["longitude"]
+          @post.device_id = params["device_id"]
+          if @post.save
+            render :json => @post
+          end
+        else
+          render :json => '{"status": "failed","reason": "need latitude and longitude position"}'
+        end
+      else
+        render :json => '{"status": "failed","reason": "invalid auth_key"}'
+      end
+    else
+      render :json => '{"status": "failed","reason": "invalid device"}'
+    end
+  end
+
+
   # GET /posts
   # GET /posts.json
   def index
@@ -69,6 +157,6 @@ class PostsController < ApplicationController
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def post_params
-      params.require(:post).permit(:content, :latlon, :views, :ups, :downs, :radius, :device_id)
+      params.require(:post).permit(:content, :latlon, :views, :ups, :downs, :radius, :device_id, :address, :city)
     end
 end
