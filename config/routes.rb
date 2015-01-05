@@ -2,6 +2,7 @@ Rails.application.routes.draw do
 
   resources :suggestions
 
+  post 'reports/submit' => 'reports#submit'
   resources :reports
 
   resources :comments
@@ -9,6 +10,8 @@ Rails.application.routes.draw do
   get 'home/index' => 'home#index', :as => 'home'
 
   devise_for :users
+
+  get 'updates/get' => 'updates#get'
   resources :updates
 
   resources :device_posts

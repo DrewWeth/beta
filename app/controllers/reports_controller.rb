@@ -1,6 +1,10 @@
 class ReportsController < ApplicationController
   before_action :set_report, only: [:show, :edit, :update, :destroy]
 
+
+  skip_before_filter  :verify_authenticity_token
+  protect_from_forgery with: :null_session
+
   # GET /reports
   # GET /reports.json
   def index
@@ -20,6 +24,26 @@ class ReportsController < ApplicationController
   # GET /reports/1/edit
   def edit
   end
+
+  def submit
+    result = {}
+    result[:status] = "failed"
+    if params["device_id"] != nil and params["auth_key"] != nil and params["post_id"] and params["why"] and Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).exists?
+      result[:status] = "success"
+
+      result[:data] = Report.create(:device_id => params["device_id"], :post_id => params["post_id"], :why => params["why"])
+
+      post = Post.where(:id => params["post_id"]).take
+      if post.views > 30 and (Report.where(:post_id => params["post_id"] / post.views).count >= 0.05)
+        post.constraint = 1
+        post.save
+      end
+    else
+      result[:reason] = "incorrect params"
+    end
+    render :json => result
+  end
+
 
   # POST /reports
   # POST /reports.json

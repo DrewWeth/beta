@@ -23,21 +23,21 @@ class PostsController < ApplicationController
       result[:status] = "success"
       location = "'POINT (" + params["longitude"].to_s + " " + params["latitude"].to_s + ")'"
       if params["before"] != nil
-        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at < ?", params["before"]).order("created_at DESC").limit($return_size)
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at < ?", params["before"]).order("created_at DESC").limit($return_size)
       elsif params["since"] != nil
 
-        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at > ?", params["since"]).order("created_at DESC").limit($return_size)
-        count = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at > ?", params["since"]).count
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).order("created_at DESC").limit($return_size)
+        count = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).count
         if count > $return_size # Whether to clear and reload table or not
           result["more_than_returned"] = true
         else
           result["more_than_returned"] = false
         end
       else
-        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").order("created_at DESC").limit($return_size)
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).order("created_at DESC").limit($return_size)
         if posts.count < $limited_posting_threshold # If shitty result then get a bunch of close ones
           result[:no_local_posts] = true
-          posts = Post.order("ST_Distance(latlon, "+ location + ")").last($return_size) # Get 30 nearest one
+          posts = Post.order("ST_Distance(latlon, "+ location + ")").where(:constraint != 1).last($return_size) # Get 30 nearest one
         end
       end
 

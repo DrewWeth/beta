@@ -14,12 +14,15 @@ class DevicesController < ApplicationController
 
   def register
     result = {}
-
-    if device = Device.create(:auth_key => random_string, :parse_token => params["parse_token"])
-      result[:status] = "success"
-      result[:data] = device
+    if params["parse_token"] != nil
+      if device = Device.create(:auth_key => random_string, :parse_token => params["parse_token"])
+        result[:status] = "success"
+        result[:data] = device
+      else
+        result[:status] = "error"
+      end
     else
-      result[:status] = "failed"
+      result[:status] = "missing parse token"
     end
     render :json => result
   end

@@ -1,10 +1,19 @@
 class UpdatesController < ApplicationController
   before_action :set_update, only: [:show, :edit, :update, :destroy]
 
+
+  skip_before_filter  :verify_authenticity_token
+  protect_from_forgery with: :null_session
+
+
   # GET /updates
   # GET /updates.json
   def index
     @updates = Update.all
+  end
+
+  def get
+    render :json => Update.where(:active => true).order("created_at DESC")
   end
 
   # GET /updates/1
