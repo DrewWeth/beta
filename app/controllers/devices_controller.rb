@@ -1,10 +1,48 @@
 class DevicesController < ApplicationController
   before_action :set_device, only: [:show, :edit, :update, :destroy]
 
+  skip_before_filter  :verify_authenticity_token
+  protect_from_forgery with: :null_session
+
+
   # GET /devices
   # GET /devices.json
   def index
     @devices = Device.all
+  end
+
+
+  def register
+    result = {}
+
+    if device = Device.create(:auth_key => random_string, :parse_token => params["parse_token"])
+      result[:status] = "success"
+      result[:data] = device
+    else
+      result[:status] = "failed"
+    end
+    render :json => result
+  end
+
+
+  ## post
+  ## params =  device_id, auth_key, profile_url
+  def newprofile
+    result = {}
+    result[:status] = "failed"
+    if params["auth_key"] != nil and params["device_id"] != nil and params["profile_url"] != nil and device = Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).take
+      device.profile_url = params["profile_url"]
+      if device.save
+        result[:status] = "success"
+        result[:data] = device
+      else
+        result[:status] = "save error"
+      end
+    else
+      result[:status] = "device not valid"
+    end
+
+    render :json => result
   end
 
   # GET /devices/1
@@ -66,6 +104,14 @@ class DevicesController < ApplicationController
     def set_device
       @device = Device.find(params[:id])
     end
+
+    def random_string(length=10)
+      chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      password = ''
+      length.times { password << chars[rand(chars.size)] }
+      password
+    end
+
 
     # Never trust parameters from the scary internet, only allow the white list through.
     def device_params

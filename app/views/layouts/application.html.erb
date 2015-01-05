@@ -7,7 +7,14 @@
   <%= csrf_meta_tags %>
 </head>
 <body>
-<%= link_to 'Posts', posts_path %>, <%= link_to 'Devices', devices_path %>
+
+<div id="navbar-links">
+  <%= link_to 'Home', home_path %> <%= link_to 'Posts', posts_path %> <%= link_to 'Devices', devices_path %> <%= link_to 'Post Data', device_posts_path %> <%= link_to 'Reports', reports_path %> <%= link_to 'Comments', comments_path %> <% if current_user == nil %><%= link_to 'Sign in', new_user_session_path %> <%= link_to 'Sign Up', new_user_registration_path %><% else %><%= link_to 'Sign Out', destroy_user_session_path, :method => "DELETE" %><% end %> <%= link_to 'Updates', updates_path %> <%= link_to 'Suggestions', suggestions_path %>
+</div>
+<div>
+  <%= !current_user.nil? ? current_user.email.humanize : "Not signed in" %>
+</div>
+
 <%= yield %>
 
 </body>

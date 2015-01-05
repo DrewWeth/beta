@@ -1,0 +1,29 @@
+<h1>Listing device_posts</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Device</th>
+      <th>Post</th>
+      <th>Action</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @device_posts.each do |device_post| %>
+      <tr>
+        <td><%= device_post.device_id %></td>
+        <td><%= device_post.post_id %></td>
+        <td><%= device_post.action_id %></td>
+        <td><%= link_to 'Show', device_post %></td>
+        <td><%= link_to 'Edit', edit_device_post_path(device_post) %></td>
+        <td><%= link_to 'Destroy', device_post, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Device post', new_device_post_path %>

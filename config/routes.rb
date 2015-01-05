@@ -1,7 +1,32 @@
 Rails.application.routes.draw do
+
+  resources :suggestions
+
+  resources :reports
+
+  resources :comments
+
+  get 'home/index' => 'home#index', :as => 'home'
+
+  devise_for :users
+  resources :updates
+
+  resources :device_posts
+
+  root 'posts#index'
+
+  post 'devices/register' => 'devices#register', :as => 'register'
+  post 'devices/newprofile' => 'devices#newprofile', :as => 'newprofile'
   resources :devices
 
+  get 'posts/nearby' => 'posts#nearby', :as => 'nearby'
+  post 'posts/submit' => 'posts#submit', :as => 'submit'
+  post 'posts/viewed' => 'posts#viewed'
+
   resources :posts
+  post 'posts/up' => 'posts#up', :as => 'up'
+  post 'posts/down' => 'posts#down', :as => 'down'
+  post 'posts/viewed/:id' => 'posts#viewed', :as => 'viewed'
 
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".

@@ -18,11 +18,16 @@ class Post < ActiveRecord::Base
   # Function to auto-fetch the address of a post
   reverse_geocoded_by :latitude, :longitude do |record, results|
     if result = results.first
-      new_address = result.city + ", " +  result.state + ", " + result.country
-      puts results.inspect
-      record.address = new_address # Store the address used for geocoding
-      record.city = result.city
-      record.latlon = GEO_FACTORY.point(result.longitude, result.latitude)
+      if !result.nil?
+        new_address = result.city + ", " +  result.state + ", " + result.country
+        puts results.inspect
+        record.address = new_address # Store the address used for geocoding
+        record.city = result.city
+        record.latlon = GEO_FACTORY.point(result.longitude, result.latitude)
+      else
+        record.address = "NA"
+        record.city = "NA"
+      end
     end
   end
 

@@ -40,3 +40,7 @@ gem 'spring',        group: :development
 gem 'activerecord-postgis-adapter'
 gem 'parse-ruby-client', '~> 0.3.0'
 gem 'geocoder'
+
+gem 'devise'
+gem 'authority'
+gem 'rolify'

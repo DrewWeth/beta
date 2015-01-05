@@ -1,6 +1,10 @@
 class PostsController < ApplicationController
   before_action :set_post, only: [:show, :edit, :update, :destroy]
 
+  # CONSTANTS
+  $return_size = 20
+  $limited_posting_threshold = 10
+
   # Allows for REST-ful API
   skip_before_filter  :verify_authenticity_token
   protect_from_forgery with: :null_session
@@ -9,79 +13,201 @@ class PostsController < ApplicationController
   require 'parse-ruby-client'
   Parse.init :application_id => "Q5N1wgUAJKrEbspM7Q2PBv32JbTPt5TQpmstic8D", :api_key => "F42ROt0bhDo0GUnsqqO2t5id7Zj37b64fGYYzRZv"
 
+  #     if Geocoder::Calculations.distance_between([params["latitude"], params["longitude"]] , [p.latitude, p.longitude]) < p.radius
 
-  # API GETs
-  def get_nearby
-    matches = []
-    if params["last"] != nil
-      posts = Post.where(['created_at < ?', params["last"]]).last(30)
-    elsif params["since"] != nil
-      posts = Post.where(['created_at > ?', params["since"]]).limit(30)
-    else
-      posts = Post.where("created_at > ?", 2.days.ago).last(30)
-    end
-    posts.each do |p|
-      if Geocoder::Calculations.distance_between([params["latitude"], params["longitude"]] , [p.latitude, p.longitude]) < p.radius
-        # obj = {:post => p, :profile_picture => p.device.profile_url}
-        obj = {:post => p }
-        matches << obj
-        puts obj.to_json
-        puts "what is going on???"
-        Post.update_counters p.id, views: 1, radius: 0.20
+  # latitude, longitude, before?, since?
+  def nearby
+    result = {} # External json object
+
+    if params["latitude"] != nil and params["longitude"] != nil and params["device_id"] != nil
+      result[:status] = "success"
+      location = "'POINT (" + params["longitude"].to_s + " " + params["latitude"].to_s + ")'"
+      if params["before"] != nil
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at < ?", params["before"]).order("created_at DESC").limit($return_size)
+      elsif params["since"] != nil
+
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at > ?", params["since"]).order("created_at DESC").limit($return_size)
+        count = Post.where("ST_Distance(latlon, "+ location + ") < radius").where("created_at > ?", params["since"]).count
+        if count > $return_size # Whether to clear and reload table or not
+          result["more_than_returned"] = true
+        else
+          result["more_than_returned"] = false
+        end
+      else
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius").order("created_at DESC").limit($return_size)
+        if posts.count < $limited_posting_threshold # If shitty result then get a bunch of close ones
+          result[:no_local_posts] = true
+          posts = Post.order("ST_Distance(latlon, "+ location + ")").last($return_size) # Get 30 nearest one
+        end
       end
+
+      data = []
+      posts.each do |p|
+        obj = {}
+        obj[:post] = p
+        obj[:has_seen] ||= DevicePost.where(:device_id => params["device_id"], :post_id => p.id)
+        data << obj
+      end
+      result[:data] = data
+
+    else
+      result[:status] = "failed"
     end
-    render :json => matches.sort{|a,b| b[:post].updated_at <=> a[:post].updated_at} ## Can push off to (1) database or (2) iphone for efficiency
+    render :json => result
   end
 
 
+  # Probably need to make a mass-view thing
 
   # API POSTs
   def viewed
-    Post.update_counters params["id"], views: 1, radius: 0.2
-    render :json => '{"status":"success"}'
+    result = {}
+    result["status"] = "failed"
+    if params["device_id"] != nil and params["post_id"] != nil and params["auth_key"] != nil
+      if Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).exists?
+        if not DevicePost.where(:device_id => params["device_id"], :post_id => params["post_id"]).exists?
+          device_post = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"]) # Make it so it has been viewed
+          Post.update_counters params["post_id"], views: 1, radius: 400 # Update distance by 1/4 mile (1 = 1609)
+          result = device_post
+        else
+          result["reason"] = "View already exists"
+        end
+      else
+        result[:reason] = "invaid auth key"
+      end
+    end
+    render :json => result
   end
 
   def up
-    ## implement many-to-many here
-    Post.update_counters params["id"], ups: 1, radius: 0.5
-    post = Post.find(params["id"])
-    if post.ups.modulo(2).zero?
-      message = "Your post got " + post.ups.to_s + " upvotes!"
-      data = { :alert => message }
+    result = {}
+    result[:status] = "failed"
+    if params["device_id"] != nil and params["post_id"] != nil and params["auth_key"] != nil
+      if Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).exists?
+        if device_post = DevicePost.where(:device_id => params["device_id"], :post_id => params["post_id"]).take
+          if device_post.action_id == 1
+            result[:reason] = "already upvoted"
+          else
+            post = Post.where(:id => params["post_id"]).take
+            if device_post.action_id == 0 # then upvote from neutral
+              post.radius += 400
+            elsif device_post.action_id == 2 # then switch to downvote from upvote
+              post.radius += 800
+              post.downs -= 1
+            end
 
-      push = Parse::Push.new(data)
-      push.where = { :objectId => post.device.parse_token }
-      push.save
+            post.ups += 1
+            post.save
 
-      puts "Pushed to device " + post.device.parse_token
+            if post.ups.modulo(5).zero?
+              message = "Your post got " + post.ups.to_s + " upvotes!"
+              data = { :alert => message }
 
-    end
-    render :json => '{"status":"success"}'
-  end
+              push = Parse::Push.new(data)
+              push.where = { :objectId => post.device.parse_token }
+              push.save
 
-  def down
-    ## implement many-to-many here
-    Post.update_counters params["id"], downs: 1, radius: -0.3
-    render :json => '{"status":"success"}'
-  end
+              puts "Pushed to device " + post.device.parse_token
+            end
 
-  def submit
-    if params["device_id"] != nil and device = Device.find(params["device_id"])
-      if params["auth_key"] and params["auth_key"] == device.auth_key
-        if params["latitude"] != nil and params["longitude"] != nil
-          @post = Post.new
-          @post.content = params["content"]
-          @post.latitude = params["latitude"]
-          @post.longitude = params["longitude"]
-          @post.device_id = params["device_id"]
-          if @post.save
-            render :json => @post
+            device_post.action_id = 1
+            device_post.save
+
+            result[:status] = "success"
+            result[:device_post] = device_post
+            result[:post] = post
           end
-        else
-          render :json => '{"status": "failed","reason": "need latitude and longitude position"}'
+        else # Super rare. Shouldn't actually happen
+          new_record = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"], :action_id => 1)
+          Post.update_counters params["post_id"], ups: 1, views: 1, radius: 600 # Update distance by 1/4 mile (1 = 1609)
+
+          result[:status] = "success"
+          result[:device_post] = new_record
+          result[:post] = "updated"
         end
       else
-        render :json => '{"status": "failed","reason": "invalid auth_key"}'
+        result[:reason] = "auth key invalid"
+      end
+    else
+      result[:reason] = "params incomplete"
+    end
+    render :json => result
+  end
+
+
+
+  def down
+    result = {}
+    result[:status] = "failed"
+    if params["device_id"] != nil and params["post_id"] != nil and params["auth_key"] != nil # Check params exist
+      if Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).exists? # Check auth key
+        if device_post = DevicePost.where(:device_id => params["device_id"], :post_id => params["post_id"]).take # Get decision
+          if device_post.action_id == 2
+            result[:reason] = "already downvoted"
+          else
+            post = Post.where(:id => params["post_id"]).take
+            if device_post.action_id == 0 and post.constraint != 2 # then downvote from neutral
+              post.radius -= 400
+            elsif device_post.action_id == 1 # then switch to upvote from downvote
+              if post.constraint != 2 # can't downvote radius of an advert
+                post.radius -= 600
+              end
+              post.ups -= 1
+            end
+
+            post.downs += 1
+
+            if post.downs - post.ups > 5 and post.constraint != 2 # If net upvotes is greater than -5 then remove/ban the post
+              post.constraint = 1 # Banned post
+            end
+
+            post.save
+
+            device_post.action_id = 2
+            device_post.save
+
+            result[:status] = "success"
+            result[:device_post] = device_post
+            result[:post] = post
+          end
+        else # Super rare. Shouldn't actually happen
+          new_record = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"], :action_id => 2)
+          Post.update_counters params["post_id"], downs: 1, views: 1, radius: -600 # Update distance by 1/4 mile (1 = 1609)
+
+          result[:status] = "success"
+          result[:device_post] = new_record
+          result[:post] = "updated"
+        end
+      else
+        result[:reason] = "auth key invalid"
+      end
+    else
+      result[:reason] = "params incomplete"
+    end
+    render :json => result
+  end
+
+
+  def submit
+    if params["device_id"] != nil and params["auth_key"] != nil and Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).take
+      if params["latitude"] != nil and params["longitude"] != nil
+        @post = Post.new
+        @post.content = params["content"]
+        @post.latitude = params["latitude"]
+        @post.longitude = params["longitude"]
+        @post.device_id = params["device_id"]
+
+        @post.post_url = params["post_url"] unless params["post_url"] == nil
+        @post.constraint = params["constraint"] unless params["constraint"] == nil
+        @post.radius = params["radius"] unless params["radius"] == nil
+
+        if @post.save
+          render :json => @post
+        else
+          render :json => '{"status": "failed","reason": "parameter problem"}'
+        end
+      else
+        render :json => '{"status": "failed","reason": "need latitude and longitude position"}'
       end
     else
       render :json => '{"status": "failed","reason": "invalid device"}'
@@ -92,7 +218,7 @@ class PostsController < ApplicationController
   # GET /posts
   # GET /posts.json
   def index
-    @posts = Post.all
+    @posts = Post.last(100)
   end
 
   # GET /posts/1

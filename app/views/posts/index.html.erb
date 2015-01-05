@@ -2,7 +2,8 @@
 
 <table>
   <thead>
-    <tr>
+    <tr style="font-size:10px">
+      <th>ID</th>
       <th>Content</th>
       <th>Latlon</th>
       <th>Views</th>
@@ -12,26 +13,31 @@
       <th>Device</th>
       <th>Address</th>
       <th>City</th>
+      <th>Constraint</th>
+      <th>Created</th>
       <th colspan="3"></th>
     </tr>
   </thead>
 
   <tbody>
     <% @posts.each do |post| %>
-      <tr>
-        <td><%= post.content %></td>
-        <td><%= post.latlon %></td>
-        <td><%= post.views %></td>
-        <td><%= post.ups %></td>
-        <td><%= post.downs %></td>
-        <td><%= post.radius %></td>
-        <td><%= post.device_id %></td>
-        <td><%= post.address %></td>
-        <td><%= post.city %></td>
-        <td><%= link_to 'Show', post %></td>
-        <td><%= link_to 'Edit', edit_post_path(post) %></td>
-        <td><%= link_to 'Destroy', post, method: :delete, data: { confirm: 'Are you sure?' } %></td>
-      </tr>
+    <tr>
+      <td><%= post.id %></td>
+      <td><%= post.content %></td>
+      <td><%= post.latlon %></td>
+      <td><%= post.views %></td>
+      <td><%= post.ups %></td>
+      <td><%= post.downs %></td>
+      <td><%= post.radius %></td>
+      <td><%= post.device_id %></td>
+      <td><%= post.address %></td>
+      <td><%= post.city %></td>
+      <td><%= post.constraint %></td>
+      <td><%= post.created_at %></td>
+      <td><%= link_to 'S', post %></td>
+      <td><%= link_to 'E', edit_post_path(post) %></td>
+      <td><%= link_to 'D', post, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+    </tr>
     <% end %>
   </tbody>
 </table>
@@ -39,3 +45,33 @@
 <br>
 
 <%= link_to 'New Post', new_post_path %>
+
+<hr>
+<p>
+  <%= link_to 'Get nearby', {:controller => 'posts', :action=> 'nearby'}, :id =>'nearby' %>
+</p>
+<div>Lat
+  <div id="lat">
+  </div>
+</div>
+<div>Long
+  <div id="lon">
+  </div>
+</div>
+
+<script>
+  $(document).ready(function(){
+    console.log("In script")
+    navigator.geolocation.getCurrentPosition(GetLocation);
+    function GetLocation(location) {
+      console.log("Location determined");
+      $('#lat').html(location.coords.latitude);
+      $('#lon').html(location.coords.longitude);
+
+      var _href = $("#nearby").attr("href");
+      $('#nearby').attr("href", _href + "?latitude=" + location.coords.latitude);
+      _href = $("#nearby").attr("href");
+      $('#nearby').attr("href", _href + "&longitude=" + location.coords.longitude);
+    }
+  });
+</script>
