@@ -1,6 +1,5 @@
 class CreatePosts < ActiveRecord::Migration
   def change
-    execute "CREATE EXTENSION IF NOT EXISTS postgis;"
 
     create_table :posts do |t|
       t.string :content, :default => ""
@@ -15,5 +14,9 @@ class CreatePosts < ActiveRecord::Migration
 
       t.timestamps
     end
+
+    execute "CREATE EXTENSION IF NOT EXISTS postgis;"
+    
   end
+
 end
