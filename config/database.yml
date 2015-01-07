@@ -22,6 +22,7 @@ default: &default
   password: 12945abc
   su_username: geo_rails_test_creator
   su_password: 12945abc
+  host: localhost
 
   # For details on connection pooling, see rails configuration guide
   # http://guides.rubyonrails.org/configuring.html#database-pooling
@@ -94,5 +95,6 @@ production:
   <<: *default
   database: geo_rails_test_production
   username: geo_rails_test
-  password: <%= ENV['GEO_RAILS_TEST_DATABASE_PASSWORD'] %>
+  password: '12945abc'
+  # password: <%= ENV['GEO_RAILS_TEST_DATABASE_PASSWORD'] %>
   schema_search_path: "public,postgis"
