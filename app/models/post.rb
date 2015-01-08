@@ -8,9 +8,16 @@ class Post < ActiveRecord::Base
   validates :device_id, presence: true
   after_initialize :init
   after_validation :reverse_geocode, if: ->(obj){ obj.latlon.present? and obj.latlon_changed? }
+  before_validation :calculate_radius
 
   # Table relations
   belongs_to :device
+  has_many :reports
+  has_many :comments
+
+  has_many :device_posts
+  has_many :devices, :through => :device_posts
+
 
   # Makes point geographic
   set_rgeo_factory_for_column(:latlon, GEO_FACTORY)
@@ -28,6 +35,17 @@ class Post < ActiveRecord::Base
         record.address = "NA"
         record.city = "NA"
       end
+    end
+  end
+
+  def calculate_radius
+    puts "calculating radius!!"
+    radius = 3219.0 + 400 * self.ups + 100 * self.views
+    radius -= 300 * self.downs unless self.constraint == 2 # unless is an advert
+    self.radius = radius
+
+    if self.downs - self.ups > 5 and self.constraint != 2 # If net upvotes is greater than -5 then remove/ban the post
+      self.constraint = 1 # Banned post
     end
   end
 

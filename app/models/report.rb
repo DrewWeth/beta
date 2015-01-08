@@ -4,6 +4,6 @@ class Report < ActiveRecord::Base
   validates :post_id, presence: true
   validates :why, presence: true
 
-
+  belongs_to :post
 
 end

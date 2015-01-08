@@ -22,9 +22,9 @@ class PostsController < ApplicationController
     if params["latitude"] != nil and params["longitude"] != nil and params["device_id"] != nil
       result[:status] = "success"
       location = "'POINT (" + params["longitude"].to_s + " " + params["latitude"].to_s + ")'"
-      if params["before"] != nil
+      if params["before"] != nil # Posts before a certain time
         posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at < ?", params["before"]).order("created_at DESC").limit($return_size)
-      elsif params["since"] != nil
+      elsif params["since"] != nil # Refreshing (adding to the top)
 
         posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).order("created_at DESC").limit($return_size)
         count = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).count
@@ -33,7 +33,7 @@ class PostsController < ApplicationController
         else
           result["more_than_returned"] = false
         end
-      else
+      else # Just get relavent messages
         posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).order("created_at DESC").limit($return_size)
         if posts.count < $limited_posting_threshold # If shitty result then get a bunch of close ones
           result[:no_local_posts] = true
@@ -45,7 +45,8 @@ class PostsController < ApplicationController
       posts.each do |p|
         obj = {}
         obj[:post] = p
-        obj[:has_seen] ||= DevicePost.where(:device_id => params["device_id"], :post_id => p.id)
+        obj[:poster] = p.device.profile_url
+        obj[:has_seen] ||= DevicePost.where(:device_id => params["device_id"], :post_id => p.id).take
         data << obj
       end
       result[:data] = data
@@ -67,7 +68,7 @@ class PostsController < ApplicationController
       if Device.where(:id => params["device_id"], :auth_key => params["auth_key"]).exists?
         if not DevicePost.where(:device_id => params["device_id"], :post_id => params["post_id"]).exists?
           device_post = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"]) # Make it so it has been viewed
-          Post.update_counters params["post_id"], views: 1, radius: 400 # Update distance by 1/4 mile (1 = 1609)
+          Post.update_counters params["post_id"], views: 1 # Update distance by 1/4 mile (1 = 1609)
           result = device_post
         else
           result["reason"] = "View already exists"
@@ -90,9 +91,7 @@ class PostsController < ApplicationController
           else
             post = Post.where(:id => params["post_id"]).take
             if device_post.action_id == 0 # then upvote from neutral
-              post.radius += 400
             elsif device_post.action_id == 2 # then switch to downvote from upvote
-              post.radius += 800
               post.downs -= 1
             end
 
@@ -119,7 +118,7 @@ class PostsController < ApplicationController
           end
         else # Super rare. Shouldn't actually happen
           new_record = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"], :action_id => 1)
-          Post.update_counters params["post_id"], ups: 1, views: 1, radius: 600 # Update distance by 1/4 mile (1 = 1609)
+          Post.update_counters params["post_id"], ups: 1, views: 1 # Update distance by 1/4 mile (1 = 1609)
 
           result[:status] = "success"
           result[:device_post] = new_record
@@ -146,20 +145,12 @@ class PostsController < ApplicationController
             result[:reason] = "already downvoted"
           else
             post = Post.where(:id => params["post_id"]).take
-            if device_post.action_id == 0 and post.constraint != 2 # then downvote from neutral
-              post.radius -= 400
-            elsif device_post.action_id == 1 # then switch to upvote from downvote
-              if post.constraint != 2 # can't downvote radius of an advert
-                post.radius -= 600
-              end
+            if device_post.action_id == 1 # then switch to upvote from downvote
               post.ups -= 1
             end
 
             post.downs += 1
 
-            if post.downs - post.ups > 5 and post.constraint != 2 # If net upvotes is greater than -5 then remove/ban the post
-              post.constraint = 1 # Banned post
-            end
 
             post.save
 
@@ -172,7 +163,7 @@ class PostsController < ApplicationController
           end
         else # Super rare. Shouldn't actually happen
           new_record = DevicePost.create(:device_id => params["device_id"], :post_id => params["post_id"], :action_id => 2)
-          Post.update_counters params["post_id"], downs: 1, views: 1, radius: -600 # Update distance by 1/4 mile (1 = 1609)
+          Post.update_counters params["post_id"], downs: 1, views: 1 # Update distance by 1/4 mile (1 = 1609)
 
           result[:status] = "success"
           result[:device_post] = new_record
