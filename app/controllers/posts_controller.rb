@@ -3,7 +3,7 @@ class PostsController < ApplicationController
 
   # CONSTANTS
   $return_size = 20
-  $limited_posting_threshold = 10
+  $limited_posting_threshold = 1
 
   # Allows for REST-ful API
   skip_before_filter  :verify_authenticity_token
@@ -25,14 +25,13 @@ class PostsController < ApplicationController
       if params["before"] != nil # Posts before a certain time
         posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at < ?", params["before"]).order("created_at DESC").limit($return_size)
       elsif params["since"] != nil # Refreshing (adding to the top)
-
-        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).order("created_at DESC").limit($return_size)
-        count = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).count
-        if count > $return_size # Whether to clear and reload table or not
-          result["more_than_returned"] = true
-        else
-          result["more_than_returned"] = false
-        end
+        posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("id > ?", params["since"]).limit($return_size).reverse # Reverse because it's added at the same time
+        # count = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).where("created_at > ?", params["since"]).count
+        # if count > $return_size # Whether to clear and reload table or not
+        #   result["more_than_returned"] = true
+        # else
+        #   result["more_than_returned"] = false
+        # end
       else # Just get relavent messages
         posts = Post.where("ST_Distance(latlon, "+ location + ") < radius", :constraint != 1).order("created_at DESC").limit($return_size)
         if posts.count < $limited_posting_threshold # If shitty result then get a bunch of close ones

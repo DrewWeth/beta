@@ -1,9 +1,11 @@
 class Post < ActiveRecord::Base
   # Geo Factory initialization
+
   GEO_FACTORY = RGeo::Geographic.spherical_factory(srid: 4326)
 
   # Validations
-  validates :content, presence: true
+  validate :has_content
+
   validates :latlon, presence: true
   validates :device_id, presence: true
   after_initialize :init
@@ -46,6 +48,13 @@ class Post < ActiveRecord::Base
 
     if self.downs - self.ups > 5 and self.constraint != 2 # If net upvotes is greater than -5 then remove/ban the post
       self.constraint = 1 # Banned post
+    end
+  end
+
+
+  def has_content
+    if [self.content, self.post_url].reject(&:blank?).size == 0
+      errors[:base] << ("Please enter text or an image")
     end
   end
 
